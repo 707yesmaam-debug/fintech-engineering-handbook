@@ -43,4 +43,16 @@ other than not using floating points. These representations are not mutually exc
 and how you compute with it are separate decisions, and a system often combines them, e.g. integer storage with
 `BigDecimal` for intermediate computation.
 
-#### Rounding stategies
+### Rounding strategies
+
+1. Rounding is inevitable and it should be done explicitly. Any division, currency conversion, fee, interest or rate
+   application, or move between precisions might require rounding.
+2. Different rounding strategies have different implications. Sometimes you have to be conservative (e.g. not to spend
+   what you don't have) and round down. Sometimes you might care about statistical effects and use half-even. This is
+   usually a business decision, not a technical one - deciding who gets the fraction might have legal/tax implications.
+3. Round as seldom as possible. The longer you keep full precision, the more options you have to make the right decision
+   in the right context. Rounding should usually happen on boundaries, e.g. before numbers are persisted or before they
+   are shown to the user.
+4. Rounding breaks sums. If a number is split into parts and rounding is applied, the sum of the parts might no longer
+   equal the original number. Depending on the context, this might require explicit handling - e.g. explicit rounding
+   account.
