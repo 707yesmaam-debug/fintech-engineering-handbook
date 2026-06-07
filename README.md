@@ -12,7 +12,7 @@ Everything you will read below is a way to adhere to the three principles:
 
 1. No invented data - Money can't be created out of nowhere, hence we can't tolerate duplicates or arbitrary balance
    updates.
-2. No lost data - Everything that happens to money has to be tracked and persisted. No precision losses, at-least-once
+2. No lost data - Everything that happens to money has to be tracked and persisted: no precision losses, at-least-once
    deliveries, event-sourcing, audit trails, immutability.
 3. No trust - Neither towards external providers, internal components nor the world. Failing on broken assumptions,
    verifying webhooks, verifying data across different sources.
@@ -28,15 +28,19 @@ it:
    is almost never a good idea. But it's the fastest and most memory efficient, and requires no additional libraries or
    data structures.
 2. Arbitrary precision - Types like Java's `BigDecimal` let you control the precision of a computation precisely. This
-   way the code is predictable and we get to decide where and how rounding happens.
+   way the code is predictable and we get to decide where and how rounding happens. It fits intermediate work like FX or
+   pricing math, where many operations chain together.
 3. Minor-units precision - For most fiat currencies it's ok to keep only a fixed precision, the same that is used in the
    connected central banking system. The number of digits is described by ISO 4217 (don't assume it's always 2, it's
-   not!). This approach is usually good enough for fiat currencies but doesn't work for crypto.
+   not!). In practice this means storing the amount as an integer in its smallest unit - €12.34 becomes `1234`. This
+   approach is usually good enough for fiat currencies but doesn't work for crypto.
 4. Rational numbers - when no precision loss is acceptable, we can use rational numbers. This is the most powerful
    approach but comes with its own caveats. First, it's slower than the alternatives. Second, it cannot be converted to
    other formats without losing precision. Third, it usually requires a custom datatype or a library.
 
 Selecting one or the other depends on the class of the system and its responsibilities. There is no rule of thumb here,
-other than not using floating points.
+other than not using floating points. These representations are not mutually exclusive either - how you store an amount
+and how you compute with it are separate decisions, and a system often combines them, e.g. integer storage with
+`BigDecimal` for intermediate computation.
 
 #### Rounding stategies
