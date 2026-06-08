@@ -61,3 +61,18 @@ and how you compute with it are separate decisions, and a system often combines 
 
 **Principles touched:** No lost data - residuals must be tracked, not dropped. No invented data - rounding must never
 mint money that wasn't there.
+
+### Currency handling
+
+Money can't be represented as number alone, it comes paired with a currency. And there are few nuances when it
+comes handling currencies.
+
+1. Packing currency and amount into a `Money` newtype (struct, class, record etc.) minimizes the chance of errors.
+2. No cross-currency arithemtic is allowed. Your system should prohibit adding two amounts in different currencies.
+2. Use a controlled currency set: a custom config entry, JDK database, dedicated service. Enum works up to a point
+3. Currency codes are unique and usable as identifiers only for fiat. For crypto currencies you will have to use more
+   complicated
+   approach like `(network, contract address)` or similar.
+4. Currencies come with metadata: symbol, precision, name, etc. You will usually need those details for display purposes
+   but rarely for business logic.
+5. [Crypto] Pegged, bridgeda dn wrapped crypto currencies are not equivalent to underlying ones.
