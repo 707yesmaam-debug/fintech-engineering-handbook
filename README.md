@@ -132,3 +132,22 @@ FX (Forex, foreign exchange currency market) rates allow us to convert money bet
 
 **Principles touched:** No lost data - keep the amounts (and, for reference rates, a way back to the source). No trust -
 there's no canonical rate, so the source should be part of the data.
+
+### Double-entry bookkeeping
+
+Double-entry bookkeeping is a widely used way to store financial transactions as a list of entries in the form of
+`(credit account, debit account, amount)` (this is a compact form; the classic representation uses a separate debit and credit
+row per movement). It ensures that money always comes from somewhere and always goes to somewhere. External providers get
+dedicated accounts too, so money entering/leaving the system is still tracked. Because every entry moves the same amount
+out of one account and into another, the books always balance - money is only moved, never created or destroyed.
+
+In this methodology, balance is never stored directly, but derived from the movements of money. 
+
+Accounts are labeled as assets, liabilities or equity, so that the **accounting equation**
+(`assets = liabilities + equity`) holds and each account has a defined side on which it increases. 
+
+A single transaction will usually create multiple movements, e.g. one accounting for the net amount, the other for the fees.
+
+By convention, posted entries are immutable - corrections are made with new compensating entries, never edits.
+
+**Principles touched:** No invented data - money is only ever moved between accounts, never created or destroyed.
