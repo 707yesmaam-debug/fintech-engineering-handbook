@@ -4,6 +4,13 @@ Welcome to the Fintech Engineering Handbook. This resource aims to describe the 
 engineering, where money is the primary focus of the system. It can be read in full to get a comprehensive understanding
 or in parts when dealing with a particular problem.
 
+### Fow whom?
+
+- **People joining fintech** - to get familiar with the domain and the patterns that make money systems trustworthy.
+- **People already in fintech** - as a reference to reach for when facing a particular problem, and a shared vocabulary
+  to point colleagues at.
+- **People outside fintech** - to understand how building for money differs from what they're used to, and why.
+
 It's meant as a living document and contributions are welcomed.
 
 ## Principles
