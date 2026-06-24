@@ -29,7 +29,10 @@ Everything you will read below is a way to adhere to the three principles:
 3. **No trust** - Neither towards external providers, internal components nor the world. Failing on broken assumptions,
    verifying webhooks, verifying data across different sources.
 
-## Guidelines
+## Representing money
+
+Before you can move or record money, you have to represent it. These are the decisions about how a monetary value is
+modeled, stored, computed and converted - get them wrong and every layer above inherits the error.
 
 ### Precision handling
 
@@ -105,6 +108,62 @@ to handling currencies.
 - **No trust** - validate currency against the controlled set at the boundary.
 - **No invented data** - treating distinct currencies/assets as interchangeable conjures value.
 
+### FX Rates
+
+FX (Forex, foreign exchange currency market) rates allow us to convert money between currencies.
+
+1. A rate is always directional. The EUR/USD rate is not the same thing as the inverted USD/EUR rate. On an exchange,
+   buying and selling are two different orders at different prices (the bid/ask spread), so the two directions don't
+   simply invert.
+2. The time of the rate is critical. While you can technically use a rate from any point in time, the most commonly used
+   are:
+    - Current-time rate - e.g. to calculate current holdings or the value of a transaction as if it happened right now.
+    - Value-date rate - e.g. to calculate change in value or a tax amount.
+3. Two kinds of rate matter for conversion:
+    1. A transactional rate is the rate a real conversion happened at. You don't store it directly - it falls out of the
+       original and result amounts.
+    2. A reference rate (mid-market or central bank) is one used for valuation and equivalence -
+       what holdings are worth right now, or a tax base at the value date - and is not a price anyone actually trades
+       at.
+4. There is no such thing as a canonical rate. Rates come from markets and vary between venues or calculation methods.
+   The closest to canonical are central bank rates, which can be used only as a reference rate and even there we can
+   have alternative sources which are just as valid.
+
+**Principles touched:**
+
+- **No lost data** - keep the amounts (and, for reference rates, a way back to the source).
+- **No trust** - there's no canonical rate, so the source should be part of the data.
+
+## Recording money: the ledger
+
+Once represented, money movements have to be recorded in a way that balances, survives audit and can be reconstructed
+years later. This is where the books, their timestamps and their history live.
+
+### Double-entry bookkeeping
+
+Double-entry bookkeeping is a widely used way to store financial transactions as a list of entries in the form of
+`(credit account, debit account, amount)` (this is a compact form; the classic representation uses a separate debit
+and credit row per movement). It ensures that money always comes from somewhere and always goes to somewhere. External
+providers get dedicated accounts too, so money entering/leaving the system is still tracked. Because every entry moves
+the same amount
+out of one account and into another, the books always balance - money is only moved, never created or destroyed.
+
+In this methodology, balance is never stored directly, but derived from the movements of money.
+
+Accounts are labeled as assets, liabilities or equity, so that the **accounting equation**
+(`assets = liabilities + equity`) holds and each account has a defined side on which it increases. In practice you also
+need income (revenue) and expense accounts - e.g. to book a fee as revenue or a write-off as a loss (
+`assets = liabilities + equity + revenue - expenses`).
+
+A single transaction will usually create multiple movements, e.g. one accounting for the net amount, the other for the
+fees.
+
+By convention, posted entries are immutable - corrections are made with new compensating entries, never edits.
+
+**Principles touched:**
+
+- **No invented data** - money is only ever moved between accounts, never created or destroyed.
+
 ### Value time vs booking time vs settlement time
 
 Transactions will usually have at least two, sometimes three timestamps associated:
@@ -133,149 +192,6 @@ booking time is useful for traceability.
 
 - **No lost data** - record every relevant timestamp; collapsing them into a single `created_at` loses information you
   can't reconstruct later.
-
-### FX Rates
-
-FX (Forex, foreign exchange currency market) rates allow us to convert money between currencies.
-
-1. A rate is always directional. The EUR/USD rate is not the same thing as the inverted USD/EUR rate. On an exchange,
-   buying and selling are two different orders at different prices (the bid/ask spread), so the two directions don't
-   simply invert.
-2. The time of the rate is critical. While you can technically use a rate from any point in time, the most commonly used
-   are:
-    - Current-time rate - e.g. to calculate current holdings or the value of a transaction as if it happened right now.
-    - Value-date rate - e.g. to calculate change in value or a tax amount.
-3. Two kinds of rate matter for conversion:
-    1. A transactional rate is the rate a real conversion happened at. You don't store it directly - it falls out of the
-       original and result amounts.
-    2. A reference rate (mid-market or central bank) is one used for valuation and equivalence -
-       what holdings are worth right now, or a tax base at the value date - and is not a price anyone actually trades
-       at.
-4. There is no such thing as a canonical rate. Rates come from markets and vary between venues or calculation methods.
-   The closest to canonical are central bank rates, which can be used only as a reference rate and even there we can
-   have alternative sources which are just as valid.
-
-**Principles touched:**
-
-- **No lost data** - keep the amounts (and, for reference rates, a way back to the source).
-- **No trust** - there's no canonical rate, so the source should be part of the data.
-
-### Double-entry bookkeeping
-
-Double-entry bookkeeping is a widely used way to store financial transactions as a list of entries in the form of
-`(credit account, debit account, amount)` (this is a compact form; the classic representation uses a separate debit
-and credit row per movement). It ensures that money always comes from somewhere and always goes to somewhere. External
-providers get dedicated accounts too, so money entering/leaving the system is still tracked. Because every entry moves
-the same amount
-out of one account and into another, the books always balance - money is only moved, never created or destroyed.
-
-In this methodology, balance is never stored directly, but derived from the movements of money.
-
-Accounts are labeled as assets, liabilities or equity, so that the **accounting equation**
-(`assets = liabilities + equity`) holds and each account has a defined side on which it increases. In practice you also
-need income (revenue) and expense accounts - e.g. to book a fee as revenue or a write-off as a loss (
-`assets = liabilities + equity + revenue - expenses`).
-
-A single transaction will usually create multiple movements, e.g. one accounting for the net amount, the other for the
-fees.
-
-By convention, posted entries are immutable - corrections are made with new compensating entries, never edits.
-
-**Principles touched:**
-
-- **No invented data** - money is only ever moved between accounts, never created or destroyed.
-
-### Invariants
-
-In any system there exist special properties that must always hold - we call them invariants. One such invariant is
-the accounting equation mentioned above. Your business stakeholders might define many such conditions that then have to
-be enforced.
-
-There are 3 primary ways to enforce invariants:
-
-1. **By construction** - make sure that the system allows creating only valid objects, so invalid states are
-   unrepresentable. This can be done through a variety of techniques: factory methods (smart constructors), type-level
-   programming (e.g. refined types), database constraints.
-2. **Runtime checks** - check that invariants hold when executing logic. This can be assertions in production code or
-   tests - property-based testing shines here (e.g. "for any sequence of postings, the books balance").
-3. **Post-factum** - analyse the data persisted by the system looking for any violations, e.g. reconciliation jobs or
-   nightly checks that ledger balances still satisfy the accounting equation.
-
-What's important: those methods are complementary and you will usually use all of them side by side to achieve the
-desired level of trust. By construction is the strongest but cannot express everything (especially cross-aggregate or
-cross-system invariants), runtime checks catch violations at the point of occurrence, and post-factum is the only one
-that catches bugs that already shipped - but catches them late.
-
-**Principles touched:**
-
-- **No trust** - invariants are verified, not assumed; even your own code's output gets checked.
-
-### Funds reservation
-
-In most cases your transactions will require interaction with the external world. For example, you might need to
-run compliance checks before allowing a user to withdraw funds, or you need to register the withdrawal in an external
-system.
-
-In such cases you also have to avoid race conditions - spending the same money twice, or discovering "insufficient
-balance" only after the external world interaction already happened.
-
-To address this, systems implement funds reservation (also known as hold-and-release), where funds are first reserved
-for a particular transaction before the external interaction starts. Once it completes, the reservation is settled and
-the transaction proceeds; if anything goes wrong, the reservation is released and the funds return to the available
-balance.
-
-This pattern introduces a distinction between two balances: the **total balance** (everything the user owns, including
-reserved funds) and the **available balance** (`available = total - reserved`). Balance checks and new reservations are
-made against the available balance, which is what prevents the same funds from backing two transactions.
-
-A few practical notes:
-
-1. The final amount is not always known upfront - fees or rates may differ from the estimate. In that case you reserve
-   the estimated amount, settle the actual one and release the remainder.
-2. A reservation that's never settled nor released locks user funds, so every flow that creates one must guarantee it
-   eventually resolves it. An explicit expiry/timeout can serve as a safety net, but it's optional - you can rely on
-   internal system discipline instead. Notably, the failure mode is conservative: an orphaned reservation locks money,
-   it never loses or creates it.
-3. Checking the balance and recording the reservation is an operation that needs strong (linearizable) consistency.
-   On a stale read, two transactions can both pass the check and back their spends with the same funds. So no eventual
-   consistency here, sorry.
-
-**Principles touched:**
-
-- **No invented data** - the same funds can never back two transactions; a reservation makes this explicit instead of
-  relying on a racy balance check.
-
-### Handling overdrafts
-
-An overdraft happens when an account balance goes negative. Overdrafts come in two kinds:
-
-1. Intentional - an overdraft is a credit product the business explicitly offers, with limits and interest. This is a
-   business feature, not an anomaly, and is mostly out of scope here. This will most likely be modeled as a separate
-   overdraft account (liability for the user, receivable for the operator) with a positive balance.
-2. Unintentional - the balance goes negative even though policy forbids it.
-
-Unintentional overdrafts happen even in correct systems, because the external world doesn't ask for permission: a
-settlement comes in higher than the reserved estimate or a reversal lands after the funds already left. Funds
-reservation reduces the window for overdrafts but cannot eliminate it.
-
-**Forbidden is not the same as unrepresentable**. It's tempting to encode
-"balance is never negative" at the type or storage level as an unsigned integer or a `CHECK (balance >= 0)` constraint.
-But when we are forced to accept a negative balance, a system that cannot represent it will either crash mid-flow,
-silently
-clamp the balance to zero (inventing money), or do something similarly wrong.
-
-Put differently, "balance >= 0" is just an invariant and the usual toolbox applies: enforce it at runtime when
-authorizing transactions, detect violations post-factum with monitoring and reconciliation - but don't force it by
-construction. When an overdraft is detected, it's a signal to investigate but not necessarily a bug.
-
-When an overdraft does happen, we have to book it and recover explicitly, e.g. by netting it against future deposits,
-requesting repayment, or writing it off - as an explicit compensating entry to an expense/loss account, never by
-editing the balance.
-
-**Principles touched:**
-
-- **No invented data** - clamping a negative balance to zero mints money.
-- **No trust** - the external world can force an overdraft no matter what your checks say.
 
 ### Audits and audit trails
 
@@ -393,11 +309,103 @@ GDPR's right to erasure appears to contradict an immutable ledger. In practice i
 - **No lost data** - separating PII from financial data lets you honor erasure without losing the financial history
   you're obliged to keep.
 
-## External world
+## Executing money flows
 
-Interacting with the external world - whether in the form of 3rd party providers (payments, KYC, AML, banks,
-custodians, etc.) or internal services - is unavoidable. Our job is to build a system that stays correct regardless of
-how unreliable those dependencies become.
+A money operation is rarely a single write. It spans steps, concurrency and failure, and has to stay correct - never
+inventing or losing money - through all of it. These are the patterns that keep a single flow correct, from the
+invariants it must preserve to surviving a crash mid-way.
+
+### Invariants
+
+In any system there exist special properties that must always hold - we call them invariants. One such invariant is
+the accounting equation mentioned above. Your business stakeholders might define many such conditions that then have to
+be enforced.
+
+There are 3 primary ways to enforce invariants:
+
+1. **By construction** - make sure that the system allows creating only valid objects, so invalid states are
+   unrepresentable. This can be done through a variety of techniques: factory methods (smart constructors), type-level
+   programming (e.g. refined types), database constraints.
+2. **Runtime checks** - check that invariants hold when executing logic. This can be assertions in production code or
+   tests - property-based testing shines here (e.g. "for any sequence of postings, the books balance").
+3. **Post-factum** - analyse the data persisted by the system looking for any violations, e.g. reconciliation jobs or
+   nightly checks that ledger balances still satisfy the accounting equation.
+
+What's important: those methods are complementary and you will usually use all of them side by side to achieve the
+desired level of trust. By construction is the strongest but cannot express everything (especially cross-aggregate or
+cross-system invariants), runtime checks catch violations at the point of occurrence, and post-factum is the only one
+that catches bugs that already shipped - but catches them late.
+
+**Principles touched:**
+
+- **No trust** - invariants are verified, not assumed; even your own code's output gets checked.
+
+### Funds reservation
+
+In most cases your transactions will require interaction with the external world. For example, you might need to
+run compliance checks before allowing a user to withdraw funds, or you need to register the withdrawal in an external
+system.
+
+In such cases you also have to avoid race conditions - spending the same money twice, or discovering "insufficient
+balance" only after the external world interaction already happened.
+
+To address this, systems implement funds reservation (also known as hold-and-release), where funds are first reserved
+for a particular transaction before the external interaction starts. Once it completes, the reservation is settled and
+the transaction proceeds; if anything goes wrong, the reservation is released and the funds return to the available
+balance.
+
+This pattern introduces a distinction between two balances: the **total balance** (everything the user owns, including
+reserved funds) and the **available balance** (`available = total - reserved`). Balance checks and new reservations are
+made against the available balance, which is what prevents the same funds from backing two transactions.
+
+A few practical notes:
+
+1. The final amount is not always known upfront - fees or rates may differ from the estimate. In that case you reserve
+   the estimated amount, settle the actual one and release the remainder.
+2. A reservation that's never settled nor released locks user funds, so every flow that creates one must guarantee it
+   eventually resolves it. An explicit expiry/timeout can serve as a safety net, but it's optional - you can rely on
+   internal system discipline instead. Notably, the failure mode is conservative: an orphaned reservation locks money,
+   it never loses or creates it.
+3. Checking the balance and recording the reservation is an operation that needs strong (linearizable) consistency.
+   On a stale read, two transactions can both pass the check and back their spends with the same funds. So no eventual
+   consistency here, sorry.
+
+**Principles touched:**
+
+- **No invented data** - the same funds can never back two transactions; a reservation makes this explicit instead of
+  relying on a racy balance check.
+
+### Handling overdrafts
+
+An overdraft happens when an account balance goes negative. Overdrafts come in two kinds:
+
+1. Intentional - an overdraft is a credit product the business explicitly offers, with limits and interest. This is a
+   business feature, not an anomaly, and is mostly out of scope here. This will most likely be modeled as a separate
+   overdraft account (liability for the user, receivable for the operator) with a positive balance.
+2. Unintentional - the balance goes negative even though policy forbids it.
+
+Unintentional overdrafts happen even in correct systems, because the external world doesn't ask for permission: a
+settlement comes in higher than the reserved estimate or a reversal lands after the funds already left. Funds
+reservation reduces the window for overdrafts but cannot eliminate it.
+
+**Forbidden is not the same as unrepresentable**. It's tempting to encode
+"balance is never negative" at the type or storage level as an unsigned integer or a `CHECK (balance >= 0)` constraint.
+But when we are forced to accept a negative balance, a system that cannot represent it will either crash mid-flow,
+silently
+clamp the balance to zero (inventing money), or do something similarly wrong.
+
+Put differently, "balance >= 0" is just an invariant and the usual toolbox applies: enforce it at runtime when
+authorizing transactions, detect violations post-factum with monitoring and reconciliation - but don't force it by
+construction. When an overdraft is detected, it's a signal to investigate but not necessarily a bug.
+
+When an overdraft does happen, we have to book it and recover explicitly, e.g. by netting it against future deposits,
+requesting repayment, or writing it off - as an explicit compensating entry to an expense/loss account, never by
+editing the balance.
+
+**Principles touched:**
+
+- **No invented data** - clamping a negative balance to zero mints money.
+- **No trust** - the external world can force an overdraft no matter what your checks say.
 
 ### Idempotency
 
@@ -467,46 +475,11 @@ persistent state machine.
 - **No invented data** - resuming re-runs steps, so they must re-apply without double-counting - the flow completes
   once, never pays twice.
 
-### Handling webhooks
+## The external world
 
-Webhooks are the most common way to receive signals from external systems, but processing them safely is not trivial.
-While we focus here on webhooks (HTTP endpoints you expose, called by an external system with a payload defined by that
-system) many of the points apply to other transport methods as well.
-
-1. Don't assume ordering of events - messages can arrive out of order or carry stale data, so the last webhook you
-   received is not necessarily the latest truth. Don't blindly overwrite your state with whatever just arrived;
-   reconcile
-   it against what you already know (e.g. by querying the API for the current state).
-2. Don't assume validity of data - webhooks might come from a secondary part of the issuer's system and carry stale or
-   improperly transformed data. A good practice is to ignore the content of the webhook and use it only as a trigger to
-   query the API for the authoritative state. Beware that the API can be eventually consistent and lag behind the
-   webhook, so a query right after the trigger may still return the old state - be ready to retry.
-3. Don't assume delivery - webhooks will get lost sooner or later, regardless of how strong a re-delivery policy the
-   issuer promises. You have to be prepared to handle a missing webhook, which usually means an independent process that
-   fixes the completeness of your data. See reconciliation.
-4. Don't assume single delivery - the same webhook will be delivered more than once. Processing must be idempotent. See
-   idempotency.
-5. Acknowledge fast, process asynchronously - return a 2xx as soon as you've durably stored the raw event, and do the
-   real
-   work asynchronously. If you process inline and are slow, the issuer can time out and retry, multiplying your load.
-6. Persist the raw payload - store what you received verbatim before acting on it. It will not only make processing more
-   reliable but will also act as your audit trail of what the provider actually said. It also lets you reprocess the
-   message after a bug without asking the provider to resend.
-7. Verify the caller - the usual mechanism is for the issuer to attach a signature of the payload, so you can verify the
-   message really came from them. Most commonly this is an HMAC computed with a shared secret; less commonly it's an
-   asymmetric signature whose public half is published. One caveat: verify the signature over the *raw bytes* you
-   received, not a re-serialized payload (re-serialization changes bytes and breaks the signature). Even with this,
-   prefer not to trust the content (see point 2).
-
-There is a recurring theme here: don't trust the webhook. Treat it as a hint that *something*
-happened, not as a reliable, ordered, authentic statement of *what* happened.
-
-**Principles touched:**
-
-- **No trust** - a webhook is an unauthenticated, unordered, possibly-lost, possibly-duplicated hint; verify the source
-  and confirm the actual state against the API.
-- **No lost data** - persist the raw event and back delivery up with reconciliation so a dropped webhook doesn't mean a
-  dropped fact.
+Interacting with the external world - whether in the form of 3rd party providers (payments, KYC, AML, banks,
+custodians, etc.) or internal services - is unavoidable. Our job is to build a system that stays correct regardless of
+how unreliable those dependencies become.
 
 ### Consuming APIs
 
@@ -551,35 +524,46 @@ and to build defensively around it.
   independent sources and validate everything at the boundary.
 - **No lost data** - persisting every request and response keeps a record you can reconcile against and reprocess from.
 
-### Reconciliation
+### Handling webhooks
 
-Any system that relies on external data is prone to data drift - a situation where one system doesn't match the other.
-For example, you might miss a webhook, or a transaction might be posted to the ledger but not reflected in the external
-provider's system. In all such cases we need reconciliation: a process that aligns the two systems. While we say "two",
-in practice it can be more than that, e.g. ledger, payment processor and the bank, but this doesn't change anything in
-how to approach the problem.
+Webhooks are the most common way to receive signals from external systems, but processing them safely is not trivial.
+While we focus here on webhooks (HTTP endpoints you expose, called by an external system with a payload defined by that
+system) many of the points apply to other transport methods as well.
 
-1. Cadence - depending on the exact context and constraints, reconciliation might be done hourly, daily, monthly or even
-   yearly.
-2. Nature of drift - data can be missing (which is an easy case) or different (e.g. the same transaction with different
-   amounts, which is much more complicated to solve). Timing also matters a lot: if settlements happen at T+3, records
-   will stay unreconciled for 3 days - that logic should be incorporated into the process so that we don't alert on
-   those cases.
-3. Matching algorithm - knowing what to compare between the two systems is the hard part. Usually you want to persist
-   the external provider id within your system so that matching is straightforward. If this is not the case, heuristic
-   algorithms enter the game (e.g. matching by amount and time).
-4. One-to-many - in some cases you will have to reconcile multiple records on one side with one on the other, e.g.
-   a single settlement transfer might cover a couple of transactions.
-5. Aligning is not trivial - it goes without saying we can't simply overwrite the data to make the reconciliation happy.
-   Each discrepancy found should be understood and fixed through first-class support, e.g. a correction record,
-   reprocessing of webhook data etc.
+1. Don't assume ordering of events - messages can arrive out of order or carry stale data, so the last webhook you
+   received is not necessarily the latest truth. Don't blindly overwrite your state with whatever just arrived;
+   reconcile
+   it against what you already know (e.g. by querying the API for the current state).
+2. Don't assume validity of data - webhooks might come from a secondary part of the issuer's system and carry stale or
+   improperly transformed data. A good practice is to ignore the content of the webhook and use it only as a trigger to
+   query the API for the authoritative state. Beware that the API can be eventually consistent and lag behind the
+   webhook, so a query right after the trigger may still return the old state - be ready to retry.
+3. Don't assume delivery - webhooks will get lost sooner or later, regardless of how strong a re-delivery policy the
+   issuer promises. You have to be prepared to handle a missing webhook, which usually means an independent process that
+   fixes the completeness of your data. See reconciliation.
+4. Don't assume single delivery - the same webhook will be delivered more than once. Processing must be idempotent. See
+   idempotency.
+5. Acknowledge fast, process asynchronously - return a 2xx as soon as you've durably stored the raw event, and do the
+   real
+   work asynchronously. If you process inline and are slow, the issuer can time out and retry, multiplying your load.
+6. Persist the raw payload - store what you received verbatim before acting on it. It will not only make processing more
+   reliable but will also act as your audit trail of what the provider actually said. It also lets you reprocess the
+   message after a bug without asking the provider to resend.
+7. Verify the caller - the usual mechanism is for the issuer to attach a signature of the payload, so you can verify the
+   message really came from them. Most commonly this is an HMAC computed with a shared secret; less commonly it's an
+   asymmetric signature whose public half is published. One caveat: verify the signature over the *raw bytes* you
+   received, not a re-serialized payload (re-serialization changes bytes and breaks the signature). Even with this,
+   prefer not to trust the content (see point 2).
+
+There is a recurring theme here: don't trust the webhook. Treat it as a hint that *something*
+happened, not as a reliable, ordered, authentic statement of *what* happened.
 
 **Principles touched:**
 
-- **No trust** - reconciliation is how we verify across independent sources instead of believing any single one is
-  right.
-- **No lost data** - it's the safety net that catches the dropped fact - the missing webhook, the unsettled transfer -
-  before it disappears for good.
+- **No trust** - a webhook is an unauthenticated, unordered, possibly-lost, possibly-duplicated hint; verify the source
+  and confirm the actual state against the API.
+- **No lost data** - persist the raw event and back delivery up with reconciliation so a dropped webhook doesn't mean a
+  dropped fact.
 
 ### Notifying reliably (Outbox and CDC)
 
@@ -622,6 +606,36 @@ id (see idempotency).
   notification can't be dropped just because a separate publish step failed.
 - **No invented data** - we never publish a notification for a change that didn't commit, and duplicate deliveries
   collapse into a single effect instead of acting twice.
+
+### Reconciliation
+
+Any system that relies on external data is prone to data drift - a situation where one system doesn't match the other.
+For example, you might miss a webhook, or a transaction might be posted to the ledger but not reflected in the external
+provider's system. In all such cases we need reconciliation: a process that aligns the two systems. While we say "two",
+in practice it can be more than that, e.g. ledger, payment processor and the bank, but this doesn't change anything in
+how to approach the problem.
+
+1. Cadence - depending on the exact context and constraints, reconciliation might be done hourly, daily, monthly or even
+   yearly.
+2. Nature of drift - data can be missing (which is an easy case) or different (e.g. the same transaction with different
+   amounts, which is much more complicated to solve). Timing also matters a lot: if settlements happen at T+3, records
+   will stay unreconciled for 3 days - that logic should be incorporated into the process so that we don't alert on
+   those cases.
+3. Matching algorithm - knowing what to compare between the two systems is the hard part. Usually you want to persist
+   the external provider id within your system so that matching is straightforward. If this is not the case, heuristic
+   algorithms enter the game (e.g. matching by amount and time).
+4. One-to-many - in some cases you will have to reconcile multiple records on one side with one on the other, e.g.
+   a single settlement transfer might cover a couple of transactions.
+5. Aligning is not trivial - it goes without saying we can't simply overwrite the data to make the reconciliation happy.
+   Each discrepancy found should be understood and fixed through first-class support, e.g. a correction record,
+   reprocessing of webhook data etc.
+
+**Principles touched:**
+
+- **No trust** - reconciliation is how we verify across independent sources instead of believing any single one is
+  right.
+- **No lost data** - it's the safety net that catches the dropped fact - the missing webhook, the unsettled transfer -
+  before it disappears for good.
 
 ## Testing
 
