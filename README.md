@@ -57,7 +57,7 @@ other than not using floating points. These representations are not mutually exc
 and how you compute with it are separate decisions, and a system often combines them, e.g. integer storage with
 `BigDecimal` for intermediate computation.
 
-The same care applies when an amount is serialized. A bare JSON number is an IEEE-754 double in most parsers, so
+The same care applies when an amount is being serialized. A bare JSON number is an IEEE-754 double in most parsers, so
 serializing money as a number reintroduces the floating-point problem at the edge, no matter how carefully you represent
 it internally. Send money either as a string (`"12.34"`) or as an integer in its smallest unit.
 
@@ -236,6 +236,9 @@ A few practical notes:
    eventually resolves it. An explicit expiry/timeout can serve as a safety net, but it's optional - you can rely on
    internal system discipline instead. Notably, the failure mode is conservative: an orphaned reservation locks money,
    it never loses or creates it.
+3. Checking the balance and recording the reservation is an operation that needs strong (linearizable) consistency.
+   On a stale read, two transactions can both pass the check and back their spends with the same funds. So no eventual
+   consistency here, sorry.
 
 **Principles touched:**
 
