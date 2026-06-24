@@ -44,8 +44,10 @@ it:
    pricing math, where many operations chain together.
 3. Minor-units precision - For most fiat currencies it's ok to keep only a fixed precision, the same that is used in the
    connected central banking system. The number of digits is described by ISO 4217 (don't assume it's always 2, it's
-   not!). In practice this means storing the amount as an integer in its smallest unit - €12.34 becomes `1234`. This
-   approach is usually good enough for fiat currencies but doesn't work for crypto.
+   not!). In practice this means storing the amount as an integer in its smallest unit - €12.34 becomes `1234`. Crypto
+   uses the same integer-smallest-unit idea (satoshis for BTC, wei for ETH), but with two twists: the precision is
+   per-asset and defined by the token itself (e.g. an ERC-20's `decimals`), often 18 digits, and the resulting
+   magnitudes overflow 64-bit integers, so you need arbitrary-width integers to hold them.
 4. Rational numbers - when no precision loss is acceptable, we can use rational numbers. This is the most powerful
    approach but comes with its own caveats. First, it's slower than the alternatives. Second, it cannot be converted to
    other formats without losing precision. Third, it usually requires a custom datatype or a library.
@@ -166,7 +168,9 @@ out of one account and into another, the books always balance - money is only mo
 In this methodology, balance is never stored directly, but derived from the movements of money.
 
 Accounts are labeled as assets, liabilities or equity, so that the **accounting equation**
-(`assets = liabilities + equity`) holds and each account has a defined side on which it increases.
+(`assets = liabilities + equity`) holds and each account has a defined side on which it increases. In practice you also
+need income (revenue) and expense accounts - e.g. to book a fee as revenue or a write-off as a loss (
+`assets = liabilities + equity + revenue - expenses`).
 
 A single transaction will usually create multiple movements, e.g. one accounting for the net amount, the other for the
 fees.
@@ -481,10 +485,11 @@ system) many of the points apply to other transport methods as well.
 6. Persist the raw payload - store what you received verbatim before acting on it. It will not only make processing more
    reliable but will also act as your audit trail of what the provider actually said. It also lets you reprocess the
    message after a bug without asking the provider to resend.
-7. Verify the caller - the usual mechanism is for the issuer to attach a signature of the payload, generated with an
-   asymmetric key whose public half is published, so you can verify the message really came from them. One caveat:
-   verify the signature over the *raw bytes* you received, not a re-serialized payload (re-serialization changes bytes
-   and breaks the signature). Even with this, prefer not to trust the content (see point 2).
+7. Verify the caller - the usual mechanism is for the issuer to attach a signature of the payload, so you can verify the
+   message really came from them. Most commonly this is an HMAC computed with a shared secret; less commonly it's an
+   asymmetric signature whose public half is published. One caveat: verify the signature over the *raw bytes* you
+   received, not a re-serialized payload (re-serialization changes bytes and breaks the signature). Even with this,
+   prefer not to trust the content (see point 2).
 
 There is a recurring theme here: don't trust the webhook. Treat it as a hint that *something*
 happened, not as a reliable, ordered, authentic statement of *what* happened.
