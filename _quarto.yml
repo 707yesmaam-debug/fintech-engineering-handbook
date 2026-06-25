@@ -7,6 +7,11 @@ project:
   # the format-level `favicon:` key only works for website projects, not this one).
   resources:
     - assets/favicon.png
+    # Hidden one-pixel-free tracking pages loaded in an iframe on download
+    # clicks, so Cloudflare records PDF/EPUB downloads as pageviews. See
+    # _includes/enhance.html.
+    - dl/pdf.html
+    - dl/epub.html
 
 # Single source of truth: index.qmd. Every output below is generated from it.
 format:
@@ -46,3 +51,5 @@ format:
 
   epub:
     toc: true
+    # Use the rendered cover (assets/cover.png, from cover.typ) as the EPUB cover.
+    cover-image: assets/cover.png

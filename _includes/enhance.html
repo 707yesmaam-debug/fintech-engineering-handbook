@@ -107,7 +107,34 @@
     update();
   }
 
-  function init() { injectFooter(); scrollspy(); }
+  // Download counting without touching UX. The PDF/EPUB links remain plain
+  // `download` anchors (instant save, no redirect), so we don't preventDefault.
+  // On click we additionally load a tiny hidden tracking page in an iframe;
+  // that page fires the Cloudflare beacon, registering a pageview at
+  // /dl/pdf.html or /dl/epub.html. Read those paths in the Cloudflare Web
+  // Analytics dashboard to see download counts. (Counts only — a static,
+  // login-less site cannot attribute downloads to a person.)
+  function trackDownloads() {
+    document.addEventListener('click', function (e) {
+      const a = e.target.closest('a[download]');
+      if (!a) return;
+      const href = a.getAttribute('href') || '';
+      let page = null;
+      if (/index\.pdf$/.test(href)) page = 'dl/pdf.html';
+      else if (/index\.epub$/.test(href)) page = 'dl/epub.html';
+      if (!page) return;
+      const ping = document.createElement('iframe');
+      ping.src = page;
+      ping.setAttribute('aria-hidden', 'true');
+      ping.style.cssText = 'position:absolute;width:0;height:0;border:0;left:-9999px;';
+      document.body.appendChild(ping);
+      // The real download keeps the page alive, so the beacon has time to send;
+      // clean up the iframe a few seconds later.
+      setTimeout(function () { ping.remove(); }, 5000);
+    }, { passive: true });
+  }
+
+  function init() { injectFooter(); scrollspy(); trackDownloads(); }
 
   if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', init);
