@@ -23,16 +23,16 @@ To learn more about the background of this book, see [Appendix C](#about).
 Everything you will read below is a way to adhere to the three principles:
 
 1. **No invented data.** Money can't be created out of nowhere, so we can't tolerate duplicates or arbitrary balance
-   updates. We enforce this with idempotency, deduplication and reconciliation.
+   updates. We enforce this with idempotency, deduplication, and reconciliation.
 2. **No lost data.** Everything that happens to money has to be tracked and persisted. We protect this with full
-   precision, at-least-once deliveries, event sourcing, audit trails and immutability.
+   precision, at-least-once deliveries, event sourcing, audit trails, and immutability.
 3. **No trust.** Trust neither external providers, internal components, nor the world. We uphold this by verifying
-   webhooks, cross-checking data across sources and failing loudly on broken assumptions.
+   webhooks, cross-checking data across sources, and failing loudly on broken assumptions.
 
 ## Representing money
 
 Before you can move or record money, you have to represent it. These are the decisions about how a monetary value is
-modeled, stored, computed and converted. Getting them wrong means every layer above inherits the error.
+modeled, stored, computed, and converted. Getting them wrong means every layer above inherits the error.
 
 ### Precision handling
 
@@ -70,7 +70,7 @@ it internally. Send money either as a string (`"12.34"`) or as an integer in its
 
 ### Rounding strategies
 
-1. **Rounding is inevitable.** It should be done explicitly: any division, currency conversion, fee, interest or rate
+1. **Rounding is inevitable.** It should be done explicitly: any division, currency conversion, fee, interest, or rate
    application, or move between precisions might require rounding.
 2. **It's a business decision.** Different rounding strategies have different implications. Sometimes you have to be
    conservative (e.g. not to spend what you don't have) and round down; sometimes you care about statistical effects and
@@ -92,7 +92,7 @@ it internally. Send money either as a string (`"12.34"`) or as an integer in its
 Money can't be represented as a number alone - it comes paired with a currency. There are a few nuances when it comes
 to handling currencies.
 
-1. **Pack amount and currency together.** A `Money` newtype (struct, class, record etc.) minimizes the chance of errors.
+1. **Pack amount and currency together.** A `Money` newtype (struct, class, record, etc.) minimizes the chance of errors.
 2. **No cross-currency arithmetic.** Your system should prohibit adding two amounts in different currencies. Conversion
    should happen very explicitly with a strictly controlled rate.
 3. **Use a controlled currency set.** A custom config entry, JDK database, dedicated service. Never accept arbitrary
@@ -101,7 +101,7 @@ to handling currencies.
    currencies you will have to use a more complicated approach like `(network, contract address)` or similar.
 5. **Currencies carry metadata.** Symbol, precision, name, etc. You will usually need those details for display purposes
    but rarely for business logic.
-6. **Pegged is not the underlying.** Pegged, bridged and wrapped crypto currencies are not equivalent to the underlying
+6. **Pegged is not the underlying.** Pegged, bridged, and wrapped crypto currencies are not equivalent to the underlying
    ones.
 
 **Principles touched:**
@@ -137,8 +137,8 @@ FX (Forex, foreign exchange currency market) rates allow us to convert money bet
 
 ## Recording money: the ledger
 
-Once represented, money movements have to be recorded in a way that balances, survives audit and can be reconstructed
-years later. This is where the books, their timestamps and their history live.
+Once represented, money movements have to be recorded in a way that balances, survives audit, and can be reconstructed
+years later. This is where the books, their timestamps, and their history live.
 
 ### Double-entry bookkeeping
 
@@ -150,7 +150,7 @@ always balance - money is only moved, never created or destroyed.
 - **Money always has a source and a destination.** External providers get dedicated accounts too, so money
   entering/leaving the system is still tracked.
 - **Balance is never stored.** It's derived from the movements of money.
-- **Accounts have a type.** Assets, liabilities or equity, so the **accounting equation**
+- **Accounts have a type.** Assets, liabilities, or equity, so the **accounting equation**
   (`assets = liabilities + equity`) holds and each account has a defined side on which it increases. In practice you
   also need income (revenue) and expense accounts - e.g. to book a fee as revenue or a write-off as a loss
   (`assets = liabilities + equity + revenue - expenses`).
@@ -197,7 +197,7 @@ Financial systems are subject to regulatory scrutiny in the form of various audi
 verified during an audit:
 
 - are company funds not commingled with user funds or used for company expenses?
-- are all revenues registered, reported and explainable? E.g. can you pinpoint the transactions that contributed to a
+- are all revenues registered, reported, and explainable? E.g. can you pinpoint the transactions that contributed to a
   particular revenue stream in a particular period?
 - is the information provided to the external world (e.g. users or the tax office) matching reality? E.g. does the
   company hold as much in assets as it owes its users?
@@ -205,17 +205,17 @@ verified during an audit:
 
 To answer those and many other questions, financial systems have to keep track of not only the current state but the
 full history of how that state came to be. This history is the **audit trail**: a record of everything that happened,
-detailed enough that any balance, report or decision can be explained and reproduced from it.
+detailed enough that any balance, report, or decision can be explained and reproduced from it.
 
 A useful audit trail captures, for every change:
 
 - **What** happened.
 - **When** it happened (see value time vs booking time).
 - **Who or what** triggered it - a user, an operator, an automated job.
-- **Why** it happened - a reference to the order, instruction or incident that caused it.
+- **Why** it happened - a reference to the order, instruction, or incident that caused it.
 
 Money movements are the obvious subject, but manual interventions, configuration changes (fee schedules, rate sources,
-limits) and permission changes need trails too.
+limits), and permission changes need trails too.
 
 The **why** is often itself the output of a decision (e.g. a compliance check or risk score). Recording just the outcome
 ("blocked") rarely satisfies an audit because you'll be asked how that outcome was reached. If that logic lives in a
@@ -316,7 +316,7 @@ GDPR's right to erasure appears to contradict an immutable ledger. In practice i
 
 ## Executing money flows
 
-A money operation is rarely a single write. It spans steps, concurrency and failure, and has to stay correct - never
+A money operation is rarely a single write. It spans steps, concurrency, and failure, and has to stay correct - never
 inventing or losing money - through all of it. These are the patterns that keep a single flow correct, from the
 invariants it must preserve to surviving a crash mid-way.
 
@@ -366,7 +366,7 @@ made against the available balance, which is what prevents the same funds from b
 A few practical notes:
 
 1. **The final amount may differ.** It's not always known upfront; fees or rates may differ from the estimate. In that
-   case you reserve the estimated amount, settle the actual one and release the remainder.
+   case you reserve the estimated amount, settle the actual one, and release the remainder.
 2. **A reservation must always resolve.** One that's never settled nor released locks user funds, so every flow that
    creates one must guarantee it eventually resolves it. An explicit expiry/timeout can serve as a safety net, but it's
    optional - you can rely on internal system discipline instead. Notably, the failure mode is conservative: an orphaned
@@ -452,7 +452,7 @@ consume or expose an operation.
 ### Full resumability
 
 A money flow rarely happens in a single step. A withdrawal might reserve funds, run compliance checks, register the
-operation in an external system and finally settle. Such a sequence is stretched across time and can die between any two
+operation in an external system, and finally settle. Such a sequence is stretched across time and can die between any two
 of those steps, so the safe assumption is that it will: assume failure every two steps. A flow can therefore never
 assume it runs to completion in one go, and a half-finished one must always land in a recoverable state, never an
 inconsistent one.
@@ -460,7 +460,7 @@ inconsistent one.
 1. **Persist progress, don't keep it in memory.** Model the flow as an explicit state machine whose state is durably
    stored, and commit each step's completion before starting the next. A restart must be able to tell exactly where the
    flow was.
-2. **Something must resume stalled flows.** An independent driver (a scheduler, worker or poller) has to pick up
+2. **Something must resume stalled flows.** An independent driver (a scheduler, worker, or poller) has to pick up
    incomplete flows and push them forward. A crash of the orchestrator must not strand a flow forever.
 3. **Every step must be safe to re-run.** On resume you may re-execute a step that already partially happened, so each
    one has to be idempotent (see idempotency).
@@ -486,8 +486,8 @@ how unreliable those dependencies become.
 
 ### Consuming APIs
 
-Sooner or later you will have to call someone else's API, e.g. a payment provider, a custodian, a blockchain node or a
-KYC vendor. You don't control its code, its quality or its uptime, so the safe default is to assume it will misbehave
+Sooner or later you will have to call someone else's API, e.g. a payment provider, a custodian, a blockchain node, or a
+KYC vendor. You don't control its code, its quality, or its uptime, so the safe default is to assume it will misbehave
 and to build defensively around it.
 
 1. **Don't trust the schema.** The response will not always match the contract you were given: fields can go missing,
@@ -514,8 +514,8 @@ and to build defensively around it.
    provider's behavior is disputed, and your material for reprocessing after a bug.
 7. **Aim for provider redundancy.** For the most critical parts, consider using more than one provider for the same
    purpose. You can never fully trust the provider, so when the stakes are highest this can mean validating the data
-   against multiple sources (e.g. two blockchain nodes) or having a backup bank partner, crypto custodian or KYC vendor.
-   This approach is extremely expensive (development, fees and complexity-wise) but might be necessary to achieve the
+   against multiple sources (e.g. two blockchain nodes) or having a backup bank partner, crypto custodian, or KYC vendor.
+   This approach is extremely expensive (development, fees, and complexity-wise) but might be necessary to achieve the
    desired level of reliability.
 8. **Don't trust the sandbox.** If a provider gives you testing/sandbox access, that's already a good sign. Those
    environments are fine for basic scenarios but will usually diverge very significantly from the production setup. Be
@@ -523,7 +523,7 @@ and to build defensively around it.
 
 **Principles touched:**
 
-- **No trust.** The provider's code, schema and uptime are all outside your control, so verify facts against
+- **No trust.** The provider's code, schema, and uptime are all outside your control, so verify facts against
   independent sources and validate everything at the boundary.
 - **No lost data.** Persisting every request and response keeps a record you can reconcile against and reprocess from.
 
@@ -570,7 +570,7 @@ happened, not a trustworthy account of *what* happened.
 ### Notifying reliably (Outbox and CDC)
 
 It's quite often a requirement to let the external world know about changes in our system in a reliable way - by
-publishing a Kafka event, dispatching a webhook call or through a plethora of other means. The problematic part is
+publishing a Kafka event, dispatching a webhook call, or through a plethora of other means. The problematic part is
 _reliably_: we have to ensure at-least-once delivery, and those channels don't fit the usual transactionality model we
 tend to rely on. Without transactionality we risk either:
 
@@ -611,10 +611,10 @@ id (see idempotency).
 Any system that relies on external data is prone to data drift - a situation where one system doesn't match the other.
 For example, you might miss a webhook, or a transaction might be posted to the ledger but not reflected in the external
 provider's system. In all such cases we need reconciliation: a process that aligns the two systems. While we say "two",
-in practice it can be more than that, e.g. ledger, payment processor and the bank, but this doesn't change anything in
+in practice it can be more than that, e.g. ledger, payment processor, and the bank, but this doesn't change anything in
 how to approach the problem.
 
-1. **Cadence.** Depending on the exact context and constraints, reconciliation might be done hourly, daily, monthly or
+1. **Cadence.** Depending on the exact context and constraints, reconciliation might be done hourly, daily, monthly, or
    even yearly.
 2. **Nature of drift.** Data can be missing (which is an easy case) or different (e.g. the same transaction with
    different amounts, which is much more complicated to solve). Timing also matters a lot: if settlements happen at T+3,
@@ -655,7 +655,7 @@ to approve it before it takes effect, also called dual control).
 1. **It applies to money operations.** Large or manual withdrawals, manual ledger corrections, treasury and cold-wallet
    moves, changing a fee schedule or a limit - anything that can move or misstate funds is a candidate for a second
    approver.
-2. **It applies to engineering too.** Merging code, deploying to production and changing infrastructure are sensitive
+2. **It applies to engineering too.** Merging code, deploying to production, and changing infrastructure are sensitive
    actions in a money system. Hence we usually require review and approval.
 3. **The approval is part of the trail.** Record who requested, who approved, and that the two were
    different people - otherwise the control is unprovable (see [Audits and audit trails](#audits-and-audit-trails)).
@@ -669,13 +669,13 @@ to approve it before it takes effect, also called dual control).
 
 ### Access control
 
-Who can do what is itself part of the system's state, and it changes over time as people join, move teams and leave.
+Who can do what is itself part of the system's state, and it changes over time as people join, move teams, and leave.
 It's not enough to know who can touch funds today; Auditors will also ask how they came to have that access.
 
 1. **Least privilege.** Grant each actor - human or service - the minimum needed, and prefer roles (RBAC) over
    per-person grants so that access stays reviewable.
 2. **Authorization changes need a trail.** Granting or revoking a capability is a sensitive event, exactly
-   like a money movement: record what changed, who changed it and why. The audit-trail discipline from the ledger
+   like a money movement: record what changed, who changed it, and why. The audit-trail discipline from the ledger
    applies here too (see [Audits and audit trails](#audits-and-audit-trails)).
 3. **Review access periodically.** Permissions become stale or inaccurate. Scheduled access
    reviews (recertification) are the post-factum check (see [Invariants](#invariants)) applied to access so that we can
@@ -693,9 +693,9 @@ approved it, when it shipped, and so on. Your version control and CI/CD systems 
 1. **Source control is the record.** Commit history attributes every change to an author and ties it - through review
    and linked tickets - to the reason it was made (it's the usual *what / who / why* an audit trail demands). Protect it
    accordingly via signed commits, protected branches, no force-pushing shared history.
-2. **Reviews and pipelines must be enforced.** Required (non-optional) reviews, status checks and "no direct pushes to
+2. **Reviews and pipelines must be enforced.** Required (non-optional) reviews, status checks, and "no direct pushes to
    main" are crucial because discipline doesn't fly in audits.
-3. **Deployments are traceable.** Which version is running, who released it and when, should be reconstructable - this
+3. **Deployments are traceable.** Which version is running, who released it, and when, should be reconstructable - this
    is what lets an incident be tied back to the change that caused it.
 
 **Principles touched:**
@@ -736,7 +736,7 @@ which you can choose the techniques with the most impact on your system.
    live - through a canary release, a controlled rollout with a small blast radius, or synthetic transactions that push
    small real amounts through the system continuously as a health check. The money-specific caveat is that these are
    real
-   movements: a test in production moves real money, so it must go through the same ledger, reconciliation and audit
+   movements: a test in production moves real money, so it must go through the same ledger, reconciliation, and audit
    trail
    as everything else, be clearly tagged, and be cleaned up through the normal correction/reversal machinery - never a
    backdoor that bypasses the books.
@@ -937,7 +937,7 @@ and who it's pitched at, so you can pick by what you're missing.
 
 - [*Trading and Exchanges: Market Microstructure for
   Practitioners*](https://www.goodreads.com/book/show/1290158.Trading_and_Exchanges) - where order books,
-  makers/takers and spreads come from; a long, detailed practitioner reference.
+  makers/takers, and spreads come from; a long, detailed practitioner reference.
 
 **Crypto**
 
@@ -949,7 +949,7 @@ and who it's pitched at, so you can pick by what you're missing.
 
 - [*Designing Data-Intensive
   Applications*](https://www.goodreads.com/book/show/23463279-designing-data-intensive-applications) - idempotency,
-  logs, consistency and the failure modes this handbook keeps returning to, from the systems side.
+  logs, consistency, and the failure modes this handbook keeps returning to, from the systems side.
 
 **KYC & AML**
 
@@ -965,9 +965,9 @@ itself, not the integration.
 
 The body of this handbook takes each pattern on its own, which makes it hard to build holistic understanding and
 intuition. This appendix walks through common flows that act as simplified but representative examples of what you will
-see in a real system. A production implementation would have more steps, more failure branches and more bookkeeping, but
+see in a real system. A production implementation would have more steps, more failure branches, and more bookkeeping, but
 the simplified version should be enough to get the general idea. They cover the three directions money moves: **out** of
-the system (a withdrawal), **into** it (a card deposit) and **within** it (a conversion).
+the system (a withdrawal), **into** it (a card deposit), and **within** it (a conversion).
 
 ### Flow 1: A crypto withdrawal
 
@@ -1033,7 +1033,7 @@ that hasn't really arrived."
    acknowledge fast with a 2xx, and only then process asynchronously. Crucially you treat the webhook as a *hint that
    something happened*, not as truth: you query the PSP's API for the authoritative state, because webhooks arrive out
    of
-   order, carry stale data, get duplicated and get lost. Processing is idempotent (see [Idempotency](#idempotency)) so a
+   order, carry stale data, get duplicated, and get lost. Processing is idempotent (see [Idempotency](#idempotency)) so a
    re-delivered "captured" credits the user once.
 4. **The credit goes through a clearing account.** The money is in flight (float) - captured by the PSP but not yet
    settled to your bank - so you post it through a suspense/clearing account rather than pretending it has arrived:
